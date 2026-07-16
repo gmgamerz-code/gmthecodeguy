@@ -1,49 +1,37 @@
 'use client';
 
-import React, { useRef, useMemo, useEffect } from 'react';
+import React, { useRef, useMemo, Suspense } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Points, PointMaterial } from '@react-three/drei';
 import * as THREE from 'three';
 
-interface ParticleFieldProps {
-  count?: number;
-}
-
-function ParticleField({ count = 8500 }: ParticleFieldProps) {
+function ParticleField() {
   const pointsRef = useRef<THREE.Points>(null!);
-  
+  const count = 4200;
+
   const [positions, colors] = useMemo(() => {
     const pos = new Float32Array(count * 3);
     const col = new Float32Array(count * 3);
-    
-    const gridSize = 92;
-    const spacing = 1.35;
-    
+
     for (let i = 0; i < count; i++) {
-      const ix = i % gridSize;
-      const iz = Math.floor(i / gridSize);
-      
-      const x = (ix - gridSize / 2) * spacing + (Math.random() - 0.5) * 0.8;
-      const z = (iz - gridSize / 3) * spacing * 0.95 + (Math.random() - 0.5) * 1.2;
-      
-      const baseY = Math.sin(ix * 0.28) * 1.8 + Math.cos(iz * 0.31) * 1.4;
-      const y = baseY + (Math.random() - 0.5) * 2.2;
-      
+      const x = (Math.random() - 0.5) * 38;
+      const z = (Math.random() - 0.5) * 42 - 8;
+      const y = (Math.random() - 0.5) * 9 + Math.sin(x * 0.3) * 2.2;
+
       pos[i * 3] = x;
       pos[i * 3 + 1] = y;
       pos[i * 3 + 2] = z;
-      
-      const r = 0.65 + Math.random() * 0.25;
+
+      const r = 0.6 + Math.random() * 0.3;
       const g = 0.75 + Math.random() * 0.2;
-      const b = 0.95 + Math.random() * 0.05;
-      
+      const b = 0.9 + Math.random() * 0.1;
+
       col[i * 3] = r;
       col[i * 3 + 1] = g;
       col[i * 3 + 2] = b;
     }
-    
     return [pos, col];
-  }, [count]);
+  }, []);
 
   const geometry = useMemo(() => {
     const geo = new THREE.BufferGeometry();
@@ -54,35 +42,29 @@ function ParticleField({ count = 8500 }: ParticleFieldProps) {
 
   useFrame((state) => {
     if (!pointsRef.current) return;
-    
-    const time = state.clock.elapsedTime * 0.35;
-    const positionsAttr = pointsRef.current.geometry.attributes.position as THREE.BufferAttribute;
-    
+
+    const time = state.clock.elapsedTime * 0.28;
+    const posAttr = pointsRef.current.geometry.attributes.position as THREE.BufferAttribute;
+
     for (let i = 0; i < count; i++) {
-      const ix = i % 92;
-      const iz = Math.floor(i / 92);
-      
-      const x = positionsAttr.getX(i);
-      const z = positionsAttr.getZ(i);
-      
-      const wave = 
-        Math.sin(time + x * 0.55 + z * 0.4) * 1.1 +
-        Math.sin(time * 0.6 + z * 0.75) * 0.7 +
-        Math.cos(time * 0.4 + ix * 0.2) * 0.5;
-      
-      const baseY = Math.sin(ix * 0.28) * 1.8 + Math.cos(iz * 0.31) * 1.4;
-      positionsAttr.setY(i, baseY + wave + (Math.sin(i) * 0.3));
+      const x = posAttr.getX(i);
+      const z = posAttr.getZ(i);
+      const ix = i % 65;
+
+      const wave = Math.sin(time + x * 0.6 + z * 0.35) * 1.3 +
+                   Math.cos(time * 0.7 + ix * 0.4) * 0.6;
+
+      posAttr.setY(i, wave + Math.sin(x * 0.25) * 1.6);
     }
-    
-    positionsAttr.needsUpdate = true;
+    posAttr.needsUpdate = true;
   });
 
   return (
-    <Points ref={pointsRef} geometry={geometry} frustumCulled={false}>
+    <Points ref={pointsRef} geometry={geometry}>
       <PointMaterial
         transparent
         vertexColors
-        size={0.065}
+        size={0.07}
         sizeAttenuation={true}
         depthWrite={false}
         blending={THREE.AdditiveBlending}
@@ -91,71 +73,33 @@ function ParticleField({ count = 8500 }: ParticleFieldProps) {
   );
 }
 
-function CameraController() {
+function CameraRig() {
   const { camera } = useThree();
-  const progressRef = useRef(0);
-  const targetProgressRef = useRef(0);
+  const scrollProgress = useRef(0);
 
-  useEffect(() => {
-    const handleScroll = () => {
-      const scrollTop = window.scrollY;
-      const docHeight = document.documentElement.scrollHeight - window.innerHeight;
-      const progress = docHeight > 0 ? Math.min(Math.max(scrollTop / docHeight, 0), 1) : 0;
-      targetProgressRef.current = progress;
+  React.useEffect(() => {
+    const onScroll = () => {
+      const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+      scrollProgress.current = maxScroll > 0 ? window.scrollY / maxScroll : 0;
     };
-
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    handleScroll();
-
-    return () => window.removeEventListener('scroll', handleScroll);
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+    return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
   useFrame(() => {
-    progressRef.current = THREE.MathUtils.lerp(
-      progressRef.current,
-      targetProgressRef.current,
-      0.065
-    );
+    const t = scrollProgress.current;
 
-    const t = progressRef.current;
+    const targetX = Math.sin(t * 1.6) * 5.5;
+    const targetY = 9.5 - t * 5.5;
+    const targetZ = 26 - t * 38;
 
-    const startX = 0;
-    const startY = 11;
-    const startZ = 28;
+    camera.position.x = THREE.MathUtils.lerp(camera.position.x, targetX, 0.07);
+    camera.position.y = THREE.MathUtils.lerp(camera.position.y, targetY, 0.07);
+    camera.position.z = THREE.MathUtils.lerp(camera.position.z, targetZ, 0.07);
 
-    const midX = Math.sin(t * Math.PI * 0.9) * 6.5;
-    const midY = 6.5 + Math.cos(t * Math.PI * 1.1) * 2.8;
-    const midZ = 28 - t * 32;
-
-    const endX = Math.sin(t * 1.8) * 4.2;
-    const endY = 3.8 + Math.sin(t * 2.2) * 1.5;
-    const endZ = -6;
-
-    const x = THREE.MathUtils.lerp(
-      THREE.MathUtils.lerp(startX, midX, t),
-      endX,
-      t * t
-    );
-    const y = THREE.MathUtils.lerp(
-      THREE.MathUtils.lerp(startY, midY, t),
-      endY,
-      t
-    );
-    const z = THREE.MathUtils.lerp(
-      THREE.MathUtils.lerp(startZ, midZ, t),
-      endZ,
-      t
-    );
-
-    camera.position.x = THREE.MathUtils.lerp(camera.position.x, x, 0.08);
-    camera.position.y = THREE.MathUtils.lerp(camera.position.y, y, 0.08);
-    camera.position.z = THREE.MathUtils.lerp(camera.position.z, z, 0.08);
-
-    const lookX = Math.sin(t * 1.3) * 3.5;
-    const lookY = 2.5 + Math.cos(t * 0.9) * 1.8;
-    const lookZ = -4 + t * 8;
-
-    camera.lookAt(lookX, lookY, lookZ);
+    const lookTargetY = 3.5 - t * 2;
+    camera.lookAt(0, lookTargetY, -6 + t * 10);
   });
 
   return null;
@@ -165,51 +109,14 @@ function Scene() {
   return (
     <>
       <color attach="background" args={['#050505']} />
-      <fog attach="fog" args={['#050505', 35, 95]} />
+      <fog attach="fog" args={['#050505', 28, 85]} />
 
-      <ambientLight intensity={0.2} color="#a5b4fc" />
-      
-      <pointLight 
-        position={[-18, 22, -12]} 
-        intensity={2.2} 
-        color="#c0d0ff" 
-        decay={1.5}
-      />
-      <pointLight 
-        position={[22, 14, -25]} 
-        intensity={1.6} 
-        color="#e0d4ff" 
-        decay={1.7}
-      />
-      <pointLight 
-        position={[0, -6, 18]} 
-        intensity={0.8} 
-        color="#f0e6d2" 
-        decay={2}
-      />
+      <ambientLight intensity={0.25} color="#a8b4ff" />
+      <pointLight position={[-15, 18, -10]} intensity={2.4} color="#b8c8ff" decay={1.6} />
+      <pointLight position={[18, 12, -22]} intensity={1.8} color="#d4c4ff" decay={1.8} />
 
-      <ParticleField count={8500} />
-      
-      <Points>
-        <bufferGeometry>
-          <bufferAttribute
-            attach="attributes-position"
-            count={380}
-            array={new Float32Array(380 * 3).map((_, i) => (Math.random() - 0.5) * 160)}
-            itemSize={3}
-          />
-        </bufferGeometry>
-        <PointMaterial
-          transparent
-          size={0.04}
-          color="#ffffff"
-          sizeAttenuation
-          opacity={0.5}
-          depthWrite={false}
-        />
-      </Points>
-
-      <CameraController />
+      <ParticleField />
+      <CameraRig />
     </>
   );
 }
@@ -218,15 +125,18 @@ export default function ThreeBackground() {
   return (
     <div className="fixed inset-0 z-0">
       <Canvas
-        camera={{ position: [0, 11, 28], fov: 52, near: 0.1, far: 200 }}
+        camera={{ position: [0, 10, 26], fov: 55, near: 0.5, far: 150 }}
         style={{ background: '#050505' }}
         gl={{ 
           alpha: true, 
           antialias: true, 
-          powerPreference: "high-performance"
+          powerPreference: "high-performance",
+          preserveDrawingBuffer: false 
         }}
       >
-        <Scene />
+        <Suspense fallback={null}>
+          <Scene />
+        </Suspense>
       </Canvas>
     </div>
   );
