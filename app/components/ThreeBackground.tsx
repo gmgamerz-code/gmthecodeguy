@@ -3,8 +3,6 @@
 import React, { useRef, useMemo, useEffect } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Points, PointMaterial } from '@react-three/drei';
-import { EffectComposer, Bloom, ToneMapping } from '@react-three/postprocessing';
-import { ToneMappingMode } from 'postprocessing';
 import * as THREE from 'three';
 
 interface ParticleFieldProps {
@@ -28,7 +26,6 @@ function ParticleField({ count = 8500 }: ParticleFieldProps) {
       const x = (ix - gridSize / 2) * spacing + (Math.random() - 0.5) * 0.8;
       const z = (iz - gridSize / 3) * spacing * 0.95 + (Math.random() - 0.5) * 1.2;
       
-      // Create gentle hilly terrain base
       const baseY = Math.sin(ix * 0.28) * 1.8 + Math.cos(iz * 0.31) * 1.4;
       const y = baseY + (Math.random() - 0.5) * 2.2;
       
@@ -36,7 +33,6 @@ function ParticleField({ count = 8500 }: ParticleFieldProps) {
       pos[i * 3 + 1] = y;
       pos[i * 3 + 2] = z;
       
-      // Elegant cool color palette with some warm accents
       const r = 0.65 + Math.random() * 0.25;
       const g = 0.75 + Math.random() * 0.2;
       const b = 0.95 + Math.random() * 0.05;
@@ -69,7 +65,6 @@ function ParticleField({ count = 8500 }: ParticleFieldProps) {
       const x = positionsAttr.getX(i);
       const z = positionsAttr.getZ(i);
       
-      // Organic wave motion - feels like a living digital landscape
       const wave = 
         Math.sin(time + x * 0.55 + z * 0.4) * 1.1 +
         Math.sin(time * 0.6 + z * 0.75) * 0.7 +
@@ -110,13 +105,12 @@ function CameraController() {
     };
 
     window.addEventListener('scroll', handleScroll, { passive: true });
-    handleScroll(); // initial
+    handleScroll();
 
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  useFrame((state, delta) => {
-    // Smoothly follow target progress
+  useFrame(() => {
     progressRef.current = THREE.MathUtils.lerp(
       progressRef.current,
       targetProgressRef.current,
@@ -125,7 +119,6 @@ function CameraController() {
 
     const t = progressRef.current;
 
-    // Cinematic Bezier-style flight path through the landscape
     const startX = 0;
     const startY = 11;
     const startZ = 28;
@@ -174,46 +167,44 @@ function Scene() {
       <color attach="background" args={['#050505']} />
       <fog attach="fog" args={['#050505', 35, 95]} />
 
-      {/* Elegant cinematic lighting */}
-      <ambientLight intensity={0.15} color="#a5b4fc" />
+      <ambientLight intensity={0.2} color="#a5b4fc" />
       
       <pointLight 
         position={[-18, 22, -12]} 
-        intensity={1.8} 
+        intensity={2.2} 
         color="#c0d0ff" 
-        decay={1.6}
+        decay={1.5}
       />
       <pointLight 
         position={[22, 14, -25]} 
-        intensity={1.4} 
+        intensity={1.6} 
         color="#e0d4ff" 
-        decay={1.8}
+        decay={1.7}
       />
       <pointLight 
-        position={[0, -8, 15]} 
-        intensity={0.6} 
+        position={[0, -6, 18]} 
+        intensity={0.8} 
         color="#f0e6d2" 
         decay={2}
       />
 
       <ParticleField count={8500} />
       
-      {/* Subtle distant stars for depth */}
       <Points>
         <bufferGeometry>
           <bufferAttribute
             attach="attributes-position"
-            count={420}
-            array={new Float32Array(420 * 3).map((_, i) => (Math.random() - 0.5) * 180)}
+            count={380}
+            array={new Float32Array(380 * 3).map((_, i) => (Math.random() - 0.5) * 160)}
             itemSize={3}
           />
         </bufferGeometry>
         <PointMaterial
           transparent
-          size={0.035}
+          size={0.04}
           color="#ffffff"
           sizeAttenuation
-          opacity={0.6}
+          opacity={0.5}
           depthWrite={false}
         />
       </Points>
@@ -232,29 +223,10 @@ export default function ThreeBackground() {
         gl={{ 
           alpha: true, 
           antialias: true, 
-          powerPreference: "high-performance",
-          preserveDrawingBuffer: true 
+          powerPreference: "high-performance"
         }}
       >
         <Scene />
-        
-        <EffectComposer>
-          <Bloom 
-            intensity={1.25} 
-            luminanceThreshold={0.15} 
-            luminanceSmoothing={0.9} 
-            radius={0.85}
-            kernelSize={3}
-          />
-          <ToneMapping 
-            mode={ToneMappingMode.ACES_FILMIC} 
-            resolution={256} 
-            whitePoint={4.2} 
-            middleGrey={0.6}
-            minLuminance={0.02}
-            averageLuminance={0.7}
-          />
-        </EffectComposer>
       </Canvas>
     </div>
   );
